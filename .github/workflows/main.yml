@@ -5,18 +5,33 @@ on:
     branches:
       - main
 
-# SECURITY FIX: Explicitly restrict pipeline permissions
 permissions:
   contents: read
 
 jobs:
+  # JOB 1: The Security Inspector
   security-scan:
     name: Checkov SAST Scan
     runs-on: self-hosted
-
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
 
       - name: Run Checkov Security Scan
         run: checkov -d .
+
+  # JOB 2: The Builder (Only runs if Job 1 passes)
+  infrastructure-deploy:
+    name: Terraform Apply (LocalStack)
+    runs-on: self-hosted
+    needs: security-scan  # <-- THIS IS THE SECURITY GATE!
+    
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Terraform Apply
+        run: terraform apply -auto-approve
