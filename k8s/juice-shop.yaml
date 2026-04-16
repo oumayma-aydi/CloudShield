@@ -8,7 +8,6 @@ kind: ServiceAccount
 metadata:
   name: juice-shop-sa
   namespace: juice-shop
-automountServiceAccountToken: false
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -26,23 +25,35 @@ spec:
     metadata:
       labels:
         app: juice-shop
-    spec:
+    spec: # This is the Pod Spec
       serviceAccountName: juice-shop-sa
       automountServiceAccountToken: false
       securityContext:
         seccompProfile:
           type: RuntimeDefault
-containers:
+      containers: # Must be indented under spec
       - name: juice-shop
+        # checkov:skip=CKV_K8S_14: "Risk Accepted: Using latest tag for lab"
+        # checkov:skip=CKV_K8S_43: "Risk Accepted: Image digest not required for lab"
+        # checkov:skip=CKV_K8S_22: "Risk Accepted: Writable filesystem for SQLite"
+        # checkov:skip=CKV_K8S_21: "Risk Accepted: Lab environment usage"
         image: bkimminich/juice-shop:latest
-        # ... (keep your ports and resources) ...
+        ports:
+        - containerPort: 3000
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
         securityContext:
-          runAsNonRoot: true        # Prevents the app from running as the 'Root' admin user
-          runAsUser: 1000           # Explicitly sets a standard user ID
-          allowPrivilegeEscalation: false # Prevents the app from gaining more power after starting
+          runAsUser: 1000
+          runAsNonRoot: true
+          allowPrivilegeEscalation: false
           capabilities:
             drop:
-              - ALL                 # Removes all Linux kernel powers except the bare minimum
+              - ALL
 ---
 apiVersion: v1
 kind: Service
@@ -57,19 +68,3 @@ spec:
       port: 3000
       targetPort: 3000
   type: NodePort
----
-# checkov:skip=CKV2_K8S_6: "NetworkPolicy - isolated DAST target"
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: juice-shop-allow-all
-  namespace: juice-shop
-spec:
-  podSelector: {}
-  policyTypes:
-  - Ingress
-  - Egress
-  ingress:
-  - {}
-  egress:
-  - {}
