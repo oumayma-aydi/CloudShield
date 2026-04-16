@@ -14,11 +14,36 @@ spec:
       labels:
         app: juice-shop
     spec:
+            # FIX 1: Don't automatically give the app API tokens to talk to K8s
+      automountServiceAccountToken: false 
       containers:
       - name: juice-shop
+        # RISK ACCEPTANCE: We tell Checkov why we are ignoring these specific rules
+        # checkov:skip=CKV_K8S_14: "Risk Accepted: Using latest tag for dynamic testing payload"
+        # checkov:skip=CKV_K8S_43: "Risk Accepted: Image digest not required for lab payload"
+        # checkov:skip=CKV_K8S_22: "Risk Accepted: Juice shop requires write access to filesystem for uploads"
+        # checkov:skip=CKV_K8S_8: "Risk Accepted: Liveness probe omitted for lab simplicity"
+        # checkov:skip=CKV_K8S_9: "Risk Accepted: Readiness probe omitted for lab simplicity"
         image: bkimminich/juice-shop:latest
         ports:
         - containerPort: 3000
+        # FIX 2: Limit RAM & CPU so hackers cannot crash our server (DoS Attack)
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+            
+        # FIX 3: Force the app to run as a normal user, NOT as Root!
+        securityContext:
+          runAsUser: 1000
+          runAsNonRoot: true
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+              - ALL
 ---
 apiVersion: v1
 kind: Service

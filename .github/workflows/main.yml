@@ -15,9 +15,19 @@ jobs:
     runs-on: self-hosted
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v3
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 
+      # FIX 2: We removed --skip-path k8s! Checkov will now scan our hardened file.
+      # We added --output json to save the results.
       - name: Run Checkov Security Scan
-        run: checkov -d .
+        run: checkov -d . --output json > checkov-report.json
+
+      # FIX 3 (COMPLIANCE): Upload the Checkov JSON report as an Artifact
+      - name: Upload Checkov Report
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f34369b2
+        if: always()
+        with:
+          name: checkov-scan-report
+          path: checkov-report.json
 
   # JOB 2: Infrastructure Deployment (Terraform)
   infrastructure-deploy:
@@ -26,7 +36,7 @@ jobs:
     needs: security-scan
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v3
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
       - name: Terraform Init
         run: terraform init
       - name: Terraform Apply
@@ -41,9 +51,17 @@ jobs:
       - name: Pull Juice Shop Image
         run: docker pull bkimminich/juice-shop:latest
       
-      - name: Run Trivy Vulnerability Scanner (Audit Mode)
+      - name: Run Trivy Vulnerability Scanner
         # We use exit-code 0 so it prints the vulnerabilities but doesn't fail the pipeline!
-        run: trivy image --severity HIGH,CRITICAL --exit-code 0 bkimminich/juice-shop:latest
+        run: trivy image --format json --output trivy-report.json --severity HIGH,CRITICAL --exit-code 0 bkimminich/juice-shop:latest
+
+      # FIX 5: Upload Trivy JSON report as an Artifact
+      - name: Upload Trivy Report
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f34369b2
+        if: always()
+        with:
+          name: trivy-scan-report
+          path: trivy-report.json
 
   # JOB 4: Application Deployment (Kubernetes)
   app-deploy:
@@ -52,7 +70,7 @@ jobs:
     needs: container-security
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v3
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         
       - name: Deploy Juice Shop to Kind Cluster
         run: kubectl apply -f k8s/juice-shop.yaml
