@@ -11,13 +11,34 @@ permissions:
   contents: read
 
 jobs:
-
-  # ─────────────────────────────────────────────
-  # STAGE 1: SAST - Scan code and infrastructure
-  # Runs BEFORE touching any deployment
-  # ─────────────────────────────────────────────
   security-scan:
-    name: "Stage 1 · Checkov SAST Scan"
+    name: "Stage 1 · Checkov & Semgrep SAST"
+    runs-on: self-hosted
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
+      # Keep your existing Checkov step here...
+
+      - name: Run Semgrep SAST
+        # Scans source code for OWASP Top 10 patterns
+        run: |
+          semgrep scan --config auto --json --output semgrep-report.json || true
+
+      - name: Upload Security Reports
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808
+        if: always()
+        with:
+          name: sast-reports
+          path: |
+            checkov-report.json
+            semgrep-report.json
+          retention-days: 30
+
+
+
+  security-scan:
+    name: "Stage 2 · Checkov SAST Scan"
     runs-on: self-hosted
     steps:
 
@@ -46,11 +67,11 @@ jobs:
           retention-days: 30
 
   # ─────────────────────────────────────────────
-  # STAGE 2: Container vulnerability scan
+  # STAGE 3: Container vulnerability scan
   # Only runs if Stage 1 passes (security gate)
   # ─────────────────────────────────────────────
   container-security:
-    name: "Stage 2 · Trivy Container Scan"
+    name: "Stage 3 · Trivy Container Scan"
     runs-on: self-hosted
     needs: security-scan
     steps:
@@ -76,7 +97,16 @@ jobs:
           name: trivy-scan-report
           path: trivy-report.json
           retention-days: 30
+      - name: Generate SBOM with Syft
+        # Produces a CycloneDX inventory of every package in the image
+        run: |
+          syft bkimminich/juice-shop:latest -o cyclonedx-json=sbom.json
 
+      - name: Upload SBOM Artifact
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808
+        with:
+          name: juice-shop-sbom
+          path: sbom.json
   # ─────────────────────────────────────────────
   # STAGE 3: Deploy application to Kubernetes
   # Only runs if Stages 1 + 2 pass (security gate)
