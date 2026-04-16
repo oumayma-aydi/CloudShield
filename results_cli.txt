@@ -1,0 +1,362 @@
+terraform scan results:
+
+Passed checks: 1, Failed checks: 0, Skipped checks: 3
+
+Check: CKV_AWS_41: "Ensure no hard coded AWS access key and secret key exists in provider"
+	PASSED for resource: aws.default
+	File: /main.tf:10-22
+	Guide: https://docs.prismacloud.io/en/enterprise-edition/policy-reference/aws-policies/secrets-policies/bc-aws-secrets-5
+Check: CKV_AWS_130: "Ensure VPC subnets do not assign public IP by default"
+	SKIPPED for resource: aws_subnet.public_subnet
+	Suppress comment:  "This subnet intentionally assigns public IPs for our web server"
+	File: /main.tf:36-44
+	Guide: https://docs.prismacloud.io/en/enterprise-edition/policy-reference/aws-policies/aws-networking-policies/ensure-vpc-subnets-do-not-assign-public-ip-by-default
+Check: CKV2_AWS_11: "Ensure VPC flow logging is enabled in all VPCs"
+	SKIPPED for resource: aws_vpc.cloudshield_vpc
+	Suppress comment:  "Flow logs are not required for local testing"
+	File: /main.tf:24-34
+	Guide: https://docs.prismacloud.io/en/enterprise-edition/policy-reference/aws-policies/aws-logging-policies/logging-9-enable-vpc-flow-logging
+Check: CKV2_AWS_12: "Ensure the default security group of every VPC restricts all traffic"
+	SKIPPED for resource: aws_vpc.cloudshield_vpc
+	Suppress comment:  "Default SG will be managed later in the project"
+	File: /main.tf:24-34
+	Guide: https://docs.prismacloud.io/en/enterprise-edition/policy-reference/aws-policies/aws-networking-policies/networking-4
+kubernetes scan results:
+
+Passed checks: 13, Failed checks: 1, Skipped checks: 0
+
+Check: CKV_K8S_21: "The default namespace should not be used"
+	PASSED for resource: ServiceAccount.juice-shop.juice-shop-sa
+	File: /k8s/juice-shop.yaml:6-12
+	Guide: https://docs.prismacloud.io/en/enterprise-edition/policy-reference/kubernetes-policies/kubernetes-policy-index/bc-k8s-20
+Check: CKV_K8S_41: "Ensure that default service accounts are not actively used"
+	PASSED for resource: ServiceAccount.juice-shop.juice-shop-sa
+	File: /k8s/juice-shop.yaml:6-12
+	Guide: https://docs.prismacloud.io/en/enterprise-edition/policy-reference/kubernetes-policies/kubernetes-policy-index/bc-k8s-38
+Check: CKV_K8S_21: "The default namespace should not be used"
+	PASSED for resource: Deployment.juice-shop.juice-shop-deployment
+	File: /k8s/juice-shop.yaml:13-46
+	Guide: https://docs.prismacloud.io/en/enterprise-edition/policy-reference/kubernetes-policies/kubernetes-policy-index/bc-k8s-20
+Check: CKV_K8S_31: "Ensure that the seccomp profile is set to docker/default or runtime/default"
+	PASSED for resource: Deployment.juice-shop.juice-shop-deployment
+	File: /k8s/juice-shop.yaml:13-46
+	Guide: https://docs.prismacloud.io/en/enterprise-edition/policy-reference/kubernetes-policies/kubernetes-policy-index/bc-k8s-29
+Check: CKV_K8S_18: "Containers should not share the host IPC namespace"
+	PASSED for resource: Deployment.juice-shop.juice-shop-deployment
+	File: /k8s/juice-shop.yaml:13-46
+	Guide: https://docs.prismacloud.io/en/enterprise-edition/policy-reference/kubernetes-policies/kubernetes-policy-index/bc-k8s-17
+Check: CKV_K8S_19: "Containers should not share the host network namespace"
+	PASSED for resource: Deployment.juice-shop.juice-shop-deployment
+	File: /k8s/juice-shop.yaml:13-46
+	Guide: https://docs.prismacloud.io/en/enterprise-edition/policy-reference/kubernetes-policies/kubernetes-policy-index/bc-k8s-18
+Check: CKV_K8S_23: "Minimize the admission of root containers"
+	PASSED for resource: Deployment.juice-shop.juice-shop-deployment
+	File: /k8s/juice-shop.yaml:13-46
+	Guide: https://docs.prismacloud.io/en/enterprise-edition/policy-reference/kubernetes-policies/kubernetes-policy-index/bc-k8s-22
+Check: CKV_K8S_27: "Do not expose the docker daemon socket to containers"
+	PASSED for resource: Deployment.juice-shop.juice-shop-deployment
+	File: /k8s/juice-shop.yaml:13-46
+	Guide: https://docs.prismacloud.io/en/enterprise-edition/policy-reference/kubernetes-policies/kubernetes-policy-index/bc-k8s-26
+Check: CKV_K8S_29: "Apply security context to your pods and containers"
+	PASSED for resource: Deployment.juice-shop.juice-shop-deployment
+	File: /k8s/juice-shop.yaml:13-46
+	Guide: https://docs.prismacloud.io/en/enterprise-edition/policy-reference/kubernetes-policies/kubernetes-policy-index/ensure-securitycontext-is-applied-to-pods-and-containers
+Check: CKV_K8S_17: "Containers should not share the host process ID namespace"
+	PASSED for resource: Deployment.juice-shop.juice-shop-deployment
+	File: /k8s/juice-shop.yaml:13-46
+	Guide: https://docs.prismacloud.io/en/enterprise-edition/policy-reference/kubernetes-policies/kubernetes-policy-index/bc-k8s-16
+Check: CKV_K8S_38: "Ensure that Service Account Tokens are only mounted where necessary"
+	PASSED for resource: Deployment.juice-shop.juice-shop-deployment
+	File: /k8s/juice-shop.yaml:13-46
+	Guide: https://docs.prismacloud.io/en/enterprise-edition/policy-reference/kubernetes-policies/kubernetes-policy-index/bc-k8s-35
+Check: CKV_K8S_21: "The default namespace should not be used"
+	PASSED for resource: Service.juice-shop.juice-shop-service
+	File: /k8s/juice-shop.yaml:47-60
+	Guide: https://docs.prismacloud.io/en/enterprise-edition/policy-reference/kubernetes-policies/kubernetes-policy-index/bc-k8s-20
+Check: CKV2_K8S_6: "Minimize the admission of pods which lack an associated NetworkPolicy"
+	PASSED for resource: Pod.juice-shop.juice-shop-deployment.app-juice-shop
+	File: /k8s/juice-shop.yaml:13-46
+Check: CKV_K8S_40: "Containers should run as a high UID to avoid host conflict"
+	FAILED for resource: Deployment.juice-shop.juice-shop-deployment
+	File: /k8s/juice-shop.yaml:13-46
+	Guide: https://docs.prismacloud.io/en/enterprise-edition/policy-reference/kubernetes-policies/kubernetes-policy-index/bc-k8s-37
+
+		13 | apiVersion: apps/v1
+		14 | kind: Deployment
+		15 | metadata:
+		16 |   name: juice-shop-deployment
+		17 |   namespace: juice-shop
+		18 |   labels:
+		19 |     app: juice-shop
+		20 | spec:
+		21 |   replicas: 1
+		22 |   selector:
+		23 |     matchLabels:
+		24 |       app: juice-shop
+		25 |   template:
+		26 |     metadata:
+		27 |       labels:
+		28 |         app: juice-shop
+		29 |     spec:
+		30 |       serviceAccountName: juice-shop-sa
+		31 |       automountServiceAccountToken: false
+		32 |       securityContext:
+		33 |         seccompProfile:
+		34 |           type: RuntimeDefault
+		35 | containers:
+		36 |       - name: juice-shop
+		37 |         image: bkimminich/juice-shop:latest
+		38 |         # ... (keep your ports and resources) ...
+		39 |         securityContext:
+		40 |           runAsNonRoot: true        # Prevents the app from running as the 'Root' admin user
+		41 |           runAsUser: 1000           # Explicitly sets a standard user ID
+		42 |           allowPrivilegeEscalation: false # Prevents the app from gaining more power after starting
+		43 |           capabilities:
+		44 |             drop:
+		45 |               - ALL                 # Removes all Linux kernel powers except the bare minimum
+		46 | ---
+
+github_actions scan results:
+
+Passed checks: 80, Failed checks: 0, Skipped checks: 0
+
+Check: CKV_GHA_3: "Suspicious use of curl with secrets"
+	PASSED for resource: jobs(security-scan)
+	File: /.github/workflows/main.yml:20-53
+Check: CKV_GHA_3: "Suspicious use of curl with secrets"
+	PASSED for resource: jobs(container-security)
+	File: /.github/workflows/main.yml:53-86
+Check: CKV_GHA_3: "Suspicious use of curl with secrets"
+	PASSED for resource: jobs(app-deploy)
+	File: /.github/workflows/main.yml:86-111
+Check: CKV_GHA_3: "Suspicious use of curl with secrets"
+	PASSED for resource: jobs(infrastructure-deploy)
+	File: /.github/workflows/main.yml:111-148
+Check: CKV_GHA_2: "Ensure run commands are not vulnerable to shell injection"
+	PASSED for resource: jobs(security-scan)
+	File: /.github/workflows/main.yml:20-53
+Check: CKV_GHA_2: "Ensure run commands are not vulnerable to shell injection"
+	PASSED for resource: jobs(container-security)
+	File: /.github/workflows/main.yml:53-86
+Check: CKV_GHA_2: "Ensure run commands are not vulnerable to shell injection"
+	PASSED for resource: jobs(app-deploy)
+	File: /.github/workflows/main.yml:86-111
+Check: CKV_GHA_2: "Ensure run commands are not vulnerable to shell injection"
+	PASSED for resource: jobs(infrastructure-deploy)
+	File: /.github/workflows/main.yml:111-148
+Check: CKV_GHA_4: "Suspicious use of netcat with IP address"
+	PASSED for resource: jobs(security-scan)
+	File: /.github/workflows/main.yml:20-53
+Check: CKV_GHA_4: "Suspicious use of netcat with IP address"
+	PASSED for resource: jobs(container-security)
+	File: /.github/workflows/main.yml:53-86
+Check: CKV_GHA_4: "Suspicious use of netcat with IP address"
+	PASSED for resource: jobs(app-deploy)
+	File: /.github/workflows/main.yml:86-111
+Check: CKV_GHA_4: "Suspicious use of netcat with IP address"
+	PASSED for resource: jobs(infrastructure-deploy)
+	File: /.github/workflows/main.yml:111-148
+Check: CKV_GHA_6: "Found artifact build without evidence of cosign sbom attestation in pipeline"
+	PASSED for resource: jobs
+	File: /.github/workflows/main.yml:19-148
+Check: CKV_GHA_5: "Found artifact build without evidence of cosign sign execution in pipeline"
+	PASSED for resource: jobs
+	File: /.github/workflows/main.yml:19-148
+Check: CKV_GHA_1: "Ensure ACTIONS_ALLOW_UNSECURE_COMMANDS isn't true on environment variables"
+	PASSED for resource: jobs(security-scan)
+	File: /.github/workflows/main.yml:20-53
+Check: CKV_GHA_1: "Ensure ACTIONS_ALLOW_UNSECURE_COMMANDS isn't true on environment variables"
+	PASSED for resource: jobs(container-security)
+	File: /.github/workflows/main.yml:53-86
+Check: CKV_GHA_1: "Ensure ACTIONS_ALLOW_UNSECURE_COMMANDS isn't true on environment variables"
+	PASSED for resource: jobs(app-deploy)
+	File: /.github/workflows/main.yml:86-111
+Check: CKV_GHA_1: "Ensure ACTIONS_ALLOW_UNSECURE_COMMANDS isn't true on environment variables"
+	PASSED for resource: jobs(infrastructure-deploy)
+	File: /.github/workflows/main.yml:111-148
+Check: CKV_GHA_7: "The build output cannot be affected by user parameters other than the build entry point and the top-level source location. GitHub Actions workflow_dispatch inputs MUST be empty. "
+	PASSED for resource: on(DevSecOps Pipeline)
+	File: /.github/workflows/main.yml:4-11
+Check: CKV_GHA_3: "Suspicious use of curl with secrets"
+	PASSED for resource: jobs(security-scan).steps[1](Checkout Code)
+	File: /.github/workflows/main.yml:24-29
+Check: CKV_GHA_3: "Suspicious use of curl with secrets"
+	PASSED for resource: jobs(security-scan).steps[2](Run Checkov Security Scan)
+	File: /.github/workflows/main.yml:28-39
+Check: CKV_GHA_3: "Suspicious use of curl with secrets"
+	PASSED for resource: jobs(security-scan).steps[3](Upload Checkov Report)
+	File: /.github/workflows/main.yml:38-53
+Check: CKV_GHA_3: "Suspicious use of curl with secrets"
+	PASSED for resource: jobs(container-security).steps[1](Pull Juice Shop Image)
+	File: /.github/workflows/main.yml:58-62
+Check: CKV_GHA_3: "Suspicious use of curl with secrets"
+	PASSED for resource: jobs(container-security).steps[2](Run Trivy Vulnerability Scanner)
+	File: /.github/workflows/main.yml:61-73
+Check: CKV_GHA_3: "Suspicious use of curl with secrets"
+	PASSED for resource: jobs(container-security).steps[3](Upload Trivy Report)
+	File: /.github/workflows/main.yml:72-86
+Check: CKV_GHA_3: "Suspicious use of curl with secrets"
+	PASSED for resource: jobs(app-deploy).steps[1](Checkout Code)
+	File: /.github/workflows/main.yml:91-95
+Check: CKV_GHA_3: "Suspicious use of curl with secrets"
+	PASSED for resource: jobs(app-deploy).steps[2](Deploy Juice Shop to Kind Cluster)
+	File: /.github/workflows/main.yml:94-98
+Check: CKV_GHA_3: "Suspicious use of curl with secrets"
+	PASSED for resource: jobs(app-deploy).steps[3](Wait for pod to be ready)
+	File: /.github/workflows/main.yml:97-111
+Check: CKV_GHA_3: "Suspicious use of curl with secrets"
+	PASSED for resource: jobs(infrastructure-deploy).steps[1](Checkout Code)
+	File: /.github/workflows/main.yml:116-120
+Check: CKV_GHA_3: "Suspicious use of curl with secrets"
+	PASSED for resource: jobs(infrastructure-deploy).steps[2](Start LocalStack if not running)
+	File: /.github/workflows/main.yml:119-133
+Check: CKV_GHA_3: "Suspicious use of curl with secrets"
+	PASSED for resource: jobs(infrastructure-deploy).steps[3](Terraform Init)
+	File: /.github/workflows/main.yml:132-136
+Check: CKV_GHA_3: "Suspicious use of curl with secrets"
+	PASSED for resource: jobs(infrastructure-deploy).steps[4](Terraform Destroy previous state)
+	File: /.github/workflows/main.yml:135-140
+Check: CKV_GHA_3: "Suspicious use of curl with secrets"
+	PASSED for resource: jobs(infrastructure-deploy).steps[5](Terraform Apply)
+	File: /.github/workflows/main.yml:139-143
+Check: CKV_GHA_3: "Suspicious use of curl with secrets"
+	PASSED for resource: jobs(infrastructure-deploy).steps[6](Verify VPC was created)
+	File: /.github/workflows/main.yml:142-148
+Check: CKV_GHA_2: "Ensure run commands are not vulnerable to shell injection"
+	PASSED for resource: jobs(security-scan).steps[1](Checkout Code)
+	File: /.github/workflows/main.yml:24-29
+Check: CKV_GHA_2: "Ensure run commands are not vulnerable to shell injection"
+	PASSED for resource: jobs(security-scan).steps[2](Run Checkov Security Scan)
+	File: /.github/workflows/main.yml:28-39
+Check: CKV_GHA_2: "Ensure run commands are not vulnerable to shell injection"
+	PASSED for resource: jobs(security-scan).steps[3](Upload Checkov Report)
+	File: /.github/workflows/main.yml:38-53
+Check: CKV_GHA_2: "Ensure run commands are not vulnerable to shell injection"
+	PASSED for resource: jobs(container-security).steps[1](Pull Juice Shop Image)
+	File: /.github/workflows/main.yml:58-62
+Check: CKV_GHA_2: "Ensure run commands are not vulnerable to shell injection"
+	PASSED for resource: jobs(container-security).steps[2](Run Trivy Vulnerability Scanner)
+	File: /.github/workflows/main.yml:61-73
+Check: CKV_GHA_2: "Ensure run commands are not vulnerable to shell injection"
+	PASSED for resource: jobs(container-security).steps[3](Upload Trivy Report)
+	File: /.github/workflows/main.yml:72-86
+Check: CKV_GHA_2: "Ensure run commands are not vulnerable to shell injection"
+	PASSED for resource: jobs(app-deploy).steps[1](Checkout Code)
+	File: /.github/workflows/main.yml:91-95
+Check: CKV_GHA_2: "Ensure run commands are not vulnerable to shell injection"
+	PASSED for resource: jobs(app-deploy).steps[2](Deploy Juice Shop to Kind Cluster)
+	File: /.github/workflows/main.yml:94-98
+Check: CKV_GHA_2: "Ensure run commands are not vulnerable to shell injection"
+	PASSED for resource: jobs(app-deploy).steps[3](Wait for pod to be ready)
+	File: /.github/workflows/main.yml:97-111
+Check: CKV_GHA_2: "Ensure run commands are not vulnerable to shell injection"
+	PASSED for resource: jobs(infrastructure-deploy).steps[1](Checkout Code)
+	File: /.github/workflows/main.yml:116-120
+Check: CKV_GHA_2: "Ensure run commands are not vulnerable to shell injection"
+	PASSED for resource: jobs(infrastructure-deploy).steps[2](Start LocalStack if not running)
+	File: /.github/workflows/main.yml:119-133
+Check: CKV_GHA_2: "Ensure run commands are not vulnerable to shell injection"
+	PASSED for resource: jobs(infrastructure-deploy).steps[3](Terraform Init)
+	File: /.github/workflows/main.yml:132-136
+Check: CKV_GHA_2: "Ensure run commands are not vulnerable to shell injection"
+	PASSED for resource: jobs(infrastructure-deploy).steps[4](Terraform Destroy previous state)
+	File: /.github/workflows/main.yml:135-140
+Check: CKV_GHA_2: "Ensure run commands are not vulnerable to shell injection"
+	PASSED for resource: jobs(infrastructure-deploy).steps[5](Terraform Apply)
+	File: /.github/workflows/main.yml:139-143
+Check: CKV_GHA_2: "Ensure run commands are not vulnerable to shell injection"
+	PASSED for resource: jobs(infrastructure-deploy).steps[6](Verify VPC was created)
+	File: /.github/workflows/main.yml:142-148
+Check: CKV_GHA_4: "Suspicious use of netcat with IP address"
+	PASSED for resource: jobs(security-scan).steps[1](Checkout Code)
+	File: /.github/workflows/main.yml:24-29
+Check: CKV_GHA_4: "Suspicious use of netcat with IP address"
+	PASSED for resource: jobs(security-scan).steps[2](Run Checkov Security Scan)
+	File: /.github/workflows/main.yml:28-39
+Check: CKV_GHA_4: "Suspicious use of netcat with IP address"
+	PASSED for resource: jobs(security-scan).steps[3](Upload Checkov Report)
+	File: /.github/workflows/main.yml:38-53
+Check: CKV_GHA_4: "Suspicious use of netcat with IP address"
+	PASSED for resource: jobs(container-security).steps[1](Pull Juice Shop Image)
+	File: /.github/workflows/main.yml:58-62
+Check: CKV_GHA_4: "Suspicious use of netcat with IP address"
+	PASSED for resource: jobs(container-security).steps[2](Run Trivy Vulnerability Scanner)
+	File: /.github/workflows/main.yml:61-73
+Check: CKV_GHA_4: "Suspicious use of netcat with IP address"
+	PASSED for resource: jobs(container-security).steps[3](Upload Trivy Report)
+	File: /.github/workflows/main.yml:72-86
+Check: CKV_GHA_4: "Suspicious use of netcat with IP address"
+	PASSED for resource: jobs(app-deploy).steps[1](Checkout Code)
+	File: /.github/workflows/main.yml:91-95
+Check: CKV_GHA_4: "Suspicious use of netcat with IP address"
+	PASSED for resource: jobs(app-deploy).steps[2](Deploy Juice Shop to Kind Cluster)
+	File: /.github/workflows/main.yml:94-98
+Check: CKV_GHA_4: "Suspicious use of netcat with IP address"
+	PASSED for resource: jobs(app-deploy).steps[3](Wait for pod to be ready)
+	File: /.github/workflows/main.yml:97-111
+Check: CKV_GHA_4: "Suspicious use of netcat with IP address"
+	PASSED for resource: jobs(infrastructure-deploy).steps[1](Checkout Code)
+	File: /.github/workflows/main.yml:116-120
+Check: CKV_GHA_4: "Suspicious use of netcat with IP address"
+	PASSED for resource: jobs(infrastructure-deploy).steps[2](Start LocalStack if not running)
+	File: /.github/workflows/main.yml:119-133
+Check: CKV_GHA_4: "Suspicious use of netcat with IP address"
+	PASSED for resource: jobs(infrastructure-deploy).steps[3](Terraform Init)
+	File: /.github/workflows/main.yml:132-136
+Check: CKV_GHA_4: "Suspicious use of netcat with IP address"
+	PASSED for resource: jobs(infrastructure-deploy).steps[4](Terraform Destroy previous state)
+	File: /.github/workflows/main.yml:135-140
+Check: CKV_GHA_4: "Suspicious use of netcat with IP address"
+	PASSED for resource: jobs(infrastructure-deploy).steps[5](Terraform Apply)
+	File: /.github/workflows/main.yml:139-143
+Check: CKV_GHA_4: "Suspicious use of netcat with IP address"
+	PASSED for resource: jobs(infrastructure-deploy).steps[6](Verify VPC was created)
+	File: /.github/workflows/main.yml:142-148
+Check: CKV_GHA_1: "Ensure ACTIONS_ALLOW_UNSECURE_COMMANDS isn't true on environment variables"
+	PASSED for resource: jobs(security-scan).steps[1](Checkout Code)
+	File: /.github/workflows/main.yml:24-29
+Check: CKV_GHA_1: "Ensure ACTIONS_ALLOW_UNSECURE_COMMANDS isn't true on environment variables"
+	PASSED for resource: jobs(security-scan).steps[2](Run Checkov Security Scan)
+	File: /.github/workflows/main.yml:28-39
+Check: CKV_GHA_1: "Ensure ACTIONS_ALLOW_UNSECURE_COMMANDS isn't true on environment variables"
+	PASSED for resource: jobs(security-scan).steps[3](Upload Checkov Report)
+	File: /.github/workflows/main.yml:38-53
+Check: CKV_GHA_1: "Ensure ACTIONS_ALLOW_UNSECURE_COMMANDS isn't true on environment variables"
+	PASSED for resource: jobs(container-security).steps[1](Pull Juice Shop Image)
+	File: /.github/workflows/main.yml:58-62
+Check: CKV_GHA_1: "Ensure ACTIONS_ALLOW_UNSECURE_COMMANDS isn't true on environment variables"
+	PASSED for resource: jobs(container-security).steps[2](Run Trivy Vulnerability Scanner)
+	File: /.github/workflows/main.yml:61-73
+Check: CKV_GHA_1: "Ensure ACTIONS_ALLOW_UNSECURE_COMMANDS isn't true on environment variables"
+	PASSED for resource: jobs(container-security).steps[3](Upload Trivy Report)
+	File: /.github/workflows/main.yml:72-86
+Check: CKV_GHA_1: "Ensure ACTIONS_ALLOW_UNSECURE_COMMANDS isn't true on environment variables"
+	PASSED for resource: jobs(app-deploy).steps[1](Checkout Code)
+	File: /.github/workflows/main.yml:91-95
+Check: CKV_GHA_1: "Ensure ACTIONS_ALLOW_UNSECURE_COMMANDS isn't true on environment variables"
+	PASSED for resource: jobs(app-deploy).steps[2](Deploy Juice Shop to Kind Cluster)
+	File: /.github/workflows/main.yml:94-98
+Check: CKV_GHA_1: "Ensure ACTIONS_ALLOW_UNSECURE_COMMANDS isn't true on environment variables"
+	PASSED for resource: jobs(app-deploy).steps[3](Wait for pod to be ready)
+	File: /.github/workflows/main.yml:97-111
+Check: CKV_GHA_1: "Ensure ACTIONS_ALLOW_UNSECURE_COMMANDS isn't true on environment variables"
+	PASSED for resource: jobs(infrastructure-deploy).steps[1](Checkout Code)
+	File: /.github/workflows/main.yml:116-120
+Check: CKV_GHA_1: "Ensure ACTIONS_ALLOW_UNSECURE_COMMANDS isn't true on environment variables"
+	PASSED for resource: jobs(infrastructure-deploy).steps[2](Start LocalStack if not running)
+	File: /.github/workflows/main.yml:119-133
+Check: CKV_GHA_1: "Ensure ACTIONS_ALLOW_UNSECURE_COMMANDS isn't true on environment variables"
+	PASSED for resource: jobs(infrastructure-deploy).steps[3](Terraform Init)
+	File: /.github/workflows/main.yml:132-136
+Check: CKV_GHA_1: "Ensure ACTIONS_ALLOW_UNSECURE_COMMANDS isn't true on environment variables"
+	PASSED for resource: jobs(infrastructure-deploy).steps[4](Terraform Destroy previous state)
+	File: /.github/workflows/main.yml:135-140
+Check: CKV_GHA_1: "Ensure ACTIONS_ALLOW_UNSECURE_COMMANDS isn't true on environment variables"
+	PASSED for resource: jobs(infrastructure-deploy).steps[5](Terraform Apply)
+	File: /.github/workflows/main.yml:139-143
+Check: CKV_GHA_1: "Ensure ACTIONS_ALLOW_UNSECURE_COMMANDS isn't true on environment variables"
+	PASSED for resource: jobs(infrastructure-deploy).steps[6](Verify VPC was created)
+	File: /.github/workflows/main.yml:142-148
+Check: CKV2_GHA_1: "Ensure top-level permissions are not set to write-all"
+	PASSED for resource: on(DevSecOps Pipeline)
+	File: /.github/workflows/main.yml:11-14
