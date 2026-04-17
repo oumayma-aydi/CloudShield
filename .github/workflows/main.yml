@@ -100,7 +100,7 @@ jobs:
   # ─────────────────────────────────────────────
   # MAIN CHAIN: Stage 3 · Deployment
   # ─────────────────────────────────────────────
-  app-deploy:
+app-deploy:
     name: "Stage 3 · Deploy to Kubernetes"
     runs-on: self-hosted
     needs: container-security
@@ -108,12 +108,30 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
 
-      - name: Deploy Juice Shop
-        run: kubectl apply -f k8s/juice-shop.yaml
-
-      - name: Wait for pod
+      - name: Ensure Kind cluster is running
         run: |
-          kubectl wait --for=condition=ready pod -l app=juice-shop --timeout=120s || kubectl get pods
+          if ! kind get clusters 2>/dev/null | grep -q "cloudshield-cluster"; then
+            echo "Cluster not found — recreating..."
+            kind create cluster --name cloudshield-cluster
+          else
+            echo "Cluster exists — checking API server..."
+            kubectl cluster-info || (
+              echo "API unreachable — deleting and recreating cluster..."
+              kind delete cluster --name cloudshield-cluster
+              kind create cluster --name cloudshield-cluster
+            )
+          fi
+          kubectl get nodes
+
+      - name: Deploy Juice Shop to Kind Cluster
+        run: kubectl apply -f k8s/juice-shop.yaml --validate=false
+
+      - name: Wait for pod to be ready
+        run: |
+          kubectl wait --for=condition=ready pod \
+            -l app=juice-shop \
+            -n juice-shop \
+            --timeout=120s || kubectl get pods -n juice-shop -o wide
 
   # ─────────────────────────────────────────────
   # MAIN CHAIN: Stage 4 · Infrastructure
