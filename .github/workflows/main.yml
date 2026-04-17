@@ -10,10 +10,54 @@ permissions:
 
 jobs:
   # ─────────────────────────────────────────────
-  # STAGE 1: SAST - Checkov & Semgrep
+  # INDEPENDENT JOB: Semgrep SAST
+  # Runs alone - does not wait for others
+  # ─────────────────────────────────────────────
+  semgrep-sast:
+    name: "Semgrep SAST Scan"
+    runs-on: self-hosted
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
+      - name: Run Semgrep SAST
+        run: |
+          semgrep scan --config auto --json --output semgrep-report.json || true
+
+      - name: Upload Semgrep Report
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808
+        if: always()
+        with:
+          name: semgrep-report
+          path: semgrep-report.json
+          retention-days: 30
+
+  # ─────────────────────────────────────────────
+  # INDEPENDENT JOB: Syft SBOM
+  # Runs alone - satisfies EO 14028 compliance
+  # ─────────────────────────────────────────────
+  syft-sbom:
+    name: "Syft SBOM Generation"
+    runs-on: self-hosted
+    steps:
+      - name: Pull Juice Shop Image
+        run: docker pull bkimminich/juice-shop:latest
+
+      - name: Generate SBOM with Syft
+        run: |
+          syft bkimminich/juice-shop:latest -o cyclonedx-json=sbom.json
+
+      - name: Upload SBOM Artifact
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808
+        with:
+          name: juice-shop-sbom
+          path: sbom.json
+
+  # ─────────────────────────────────────────────
+  # MAIN CHAIN: Stage 1 · Infrastructure Scan
   # ─────────────────────────────────────────────
   security-scan:
-    name: "Stage 1 · Checkov & Semgrep SAST"
+    name: "Stage 1 · Checkov SAST"
     runs-on: self-hosted
     steps:
       - name: Checkout Code
@@ -24,26 +68,18 @@ jobs:
           checkov -d . --output json --output-file-path . || true
           find . -name "results_*.json" -exec cp {} checkov-report.json \; 2>/dev/null || true
 
-      - name: Run Semgrep SAST
-        # Scans source code for OWASP patterns
-        run: |
-          semgrep scan --config auto --json --output semgrep-report.json || true
-
-      - name: Upload SAST Reports
+      - name: Upload Checkov Report
         uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808
         if: always()
         with:
-          name: sast-reports
-          path: |
-            checkov-report.json
-            semgrep-report.json
-          retention-days: 30
+          name: checkov-report
+          path: checkov-report.json
 
   # ─────────────────────────────────────────────
-  # STAGE 2: Container Scan & SBOM (Syft)
+  # MAIN CHAIN: Stage 2 · Container Scan
   # ─────────────────────────────────────────────
   container-security:
-    name: "Stage 2 · Trivy & Syft SBOM"
+    name: "Stage 2 · Trivy Scan"
     runs-on: self-hosted
     needs: security-scan
     steps:
@@ -54,22 +90,15 @@ jobs:
         run: |
           trivy image --format json --output trivy-report.json --severity HIGH,CRITICAL --exit-code 0 bkimminich/juice-shop:latest
 
-      - name: Generate SBOM with Syft
-        # Creates the CycloneDX inventory required by your schema
-        run: |
-          syft bkimminich/juice-shop:latest -o cyclonedx-json=sbom.json
-
-      - name: Upload Container Reports
+      - name: Upload Trivy Report
         uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808
         if: always()
         with:
-          name: container-reports
-          path: |
-            trivy-report.json
-            sbom.json
+          name: trivy-report
+          path: trivy-report.json
 
   # ─────────────────────────────────────────────
-  # STAGE 3: Deploy to Kubernetes
+  # MAIN CHAIN: Stage 3 · Deployment
   # ─────────────────────────────────────────────
   app-deploy:
     name: "Stage 3 · Deploy to Kubernetes"
@@ -87,7 +116,7 @@ jobs:
           kubectl wait --for=condition=ready pod -l app=juice-shop --timeout=120s || kubectl get pods
 
   # ─────────────────────────────────────────────
-  # STAGE 4: Infrastructure (LocalStack)
+  # MAIN CHAIN: Stage 4 · Infrastructure
   # ─────────────────────────────────────────────
   infrastructure-deploy:
     name: "Stage 4 · Terraform Apply"
