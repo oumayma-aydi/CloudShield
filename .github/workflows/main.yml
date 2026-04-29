@@ -18,9 +18,6 @@ jobs:
   semgrep:
     name: Semgrep SAST Scan
     runs-on: self-hosted
-    # Scans: Juice Shop JS/TS source code
-    # Detects: OWASP A03 (eval/injection), A04 (hardcoded JWT, MD5)
-    # Custom rules: semgrep-rules/no-eval.yaml, no-hardcoded-jwt.yaml, no-md5.yaml
     steps:
       - name: Checkout Code
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
@@ -34,20 +31,20 @@ jobs:
           fi
 
       - name: Run Semgrep — auto ruleset + custom rules
-        # --config=auto        : Semgrep's full community ruleset for JS/TS
-        # --config=semgrep-rules : our 3 custom rules from the repo
-        # --exit-code 0        : audit mode — Juice Shop is intentionally vulnerable
         run: |
           cd ~/juice-shop-src
+          # We removed --exit-code because it's causing the "unknown option" error
           semgrep \
             --config=auto \
             --config=$GITHUB_WORKSPACE/semgrep-rules \
-            --exit-code 0 \
             --json \
             --output $GITHUB_WORKSPACE/semgrep-report.json \
             . || true
+          
           echo "Semgrep scan complete — summary:"
-          python3 -c "
+          # This Python script only works if the JSON file was created successfully above
+          if [ -f "$GITHUB_WORKSPACE/semgrep-report.json" ]; then
+            python3 -c "
           import json
           with open('$GITHUB_WORKSPACE/semgrep-report.json') as f:
             data = json.load(f)
@@ -55,7 +52,10 @@ jobs:
           errors  = data.get('errors',  [])
           print(f'  Findings : {len(results)}')
           print(f'  Errors   : {len(errors)}')
-          " || true
+            "
+          else
+            echo "Error: semgrep-report.json not found. Check Semgrep logs above."
+          fi
 
       - name: Upload Semgrep Report
         uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808
