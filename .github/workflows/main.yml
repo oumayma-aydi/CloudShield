@@ -271,45 +271,65 @@ jobs:
     runs-on: self-hosted
     needs: infrastructure-deploy
     steps:
-      - name: Wait for Juice Shop Pod to be Ready
+      - name: Force Fresh Pod (Memory Mitigation)
         run: |
-          echo "=== Waiting for Juice Shop pod to be Running... ==="
-          kubectl rollout status deployment/juice-shop -n juice-shop --timeout=120s || true
-          # Extra guard: wait until pod is actually Ready
-          for i in $(seq 1 20); do
-            STATUS=$(kubectl get pods -n juice-shop -l app=juice-shop \
-              -o jsonpath='{.items[0].status.conditions[?(@.type=="Ready")].status}' 2>/dev/null)
-            if [ "$STATUS" = "True" ]; then
-              echo "✅ Pod is Ready."
-              break
-            fi
-            echo "⏳ Attempt $i/20 — pod not ready yet, waiting 10s..."
-            sleep 10
-          done
+          echo "=== Killing stale/crashed Juice Shop pod ==="
+          # Delete the crashed pod — the deployment will immediately create a fresh one
+          kubectl delete pod -n juice-shop -l app=juice-shop --force --grace-period=0 || true
+          # Also kill any stale port-forward from a previous run
+          pkill -f "port-forward.*3000" || true
+          echo "Waiting 15s for new pod to be scheduled..."
+          sleep 15
           kubectl get pods -n juice-shop
 
-      - name: Start Port-Forward on Host
+      - name: Wait for Juice Shop to be Truly Ready
         run: |
-          # Kill any stale forwarder
+          echo "=== Waiting for pod to reach Running + Ready ==="
+          # Wait up to 3 minutes for the deployment rollout
+          kubectl rollout status deployment/juice-shop-deployment \
+            -n juice-shop --timeout=180s || true
+
+          # Then poll until the app itself is responding (not just "Running")
+          echo "=== Polling HTTP health until app responds ==="
+          HOST_PORT=3001  # use a temp port for health check to avoid conflicts
+          kubectl port-forward svc/juice-shop-service ${HOST_PORT}:3000 \
+            -n juice-shop --address 127.0.0.1 &
+          PF_HEALTH_PID=$!
+          sleep 8
+
+          for i in $(seq 1 24); do
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+              --max-time 4 http://127.0.0.1:${HOST_PORT} 2>/dev/null || echo "000")
+            if [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "302" ]; then
+              echo "✅ Juice Shop is responding (HTTP $HTTP_CODE) after attempt $i"
+              kill $PF_HEALTH_PID 2>/dev/null || true
+              break
+            fi
+            echo "⏳ Attempt $i/24 — HTTP $HTTP_CODE — waiting 10s..."
+            sleep 10
+          done
+
+          kill $PF_HEALTH_PID 2>/dev/null || true
+          sleep 3
+          kubectl get pods -n juice-shop
+
+      - name: Start Port-Forward for ZAP
+        run: |
           pkill -f "port-forward.*3000" || true
-          sleep 2
-          # Bind on all interfaces so host localhost:3000 is reachable
+          sleep 3
           kubectl port-forward svc/juice-shop-service 3000:3000 \
             -n juice-shop --address 0.0.0.0 &
-          PF_PID=$!
-          echo "Port-forward PID: $PF_PID"
-          # Give it time to establish
-          sleep 20
-          # Verify it's actually listening
-          echo "=== Checking if port 3000 is open on host ==="
-          curl -s --max-time 5 http://localhost:3000 > /dev/null \
-            && echo "✅ Port 3000 is reachable" \
-            || echo "❌ WARNING: Port 3000 not responding — ZAP will likely fail"
+          echo "Port-forward PID: $!"
+          sleep 15
+          # Final sanity check
+          curl -s --max-time 5 -o /dev/null -w "Port-forward health: HTTP %{http_code}\n" \
+            http://localhost:3000 || echo "❌ Still not responding — check pod status"
+          kubectl get pods -n juice-shop
 
-      - name: Run ZAP Scan (host network)
+      - name: Run ZAP Baseline Scan
         run: |
           mkdir -p zap-output && chmod 777 zap-output
-          echo "=== Starting ZAP baseline scan targeting localhost:3000 ==="
+          echo "=== Starting ZAP scan (--network host → localhost:3000) ==="
           docker run --user root --rm \
             --network host \
             -v $(pwd)/zap-output:/zap/wrk/:rw \
@@ -319,21 +339,22 @@ jobs:
             -r zap-report.html \
             -J zap-report.json \
             -I || true
-          echo "=== Contents of zap-output after scan ==="
+          echo "=== zap-output contents ==="
           ls -lh zap-output/
 
-      - name: Verify HTML Report Exists
+      - name: Verify HTML Report
         run: |
-          if [ -f "zap-output/zap-report.html" ]; then
-            echo "✅ zap-report.html generated ($(du -h zap-output/zap-report.html | cut -f1))"
+          if [ -f "zap-output/zap-report.html" ] && \
+             [ $(stat -c%s "zap-output/zap-report.html") -gt 5000 ]; then
+            echo "✅ zap-report.html OK ($(du -h zap-output/zap-report.html | cut -f1))"
           else
-            echo "❌ zap-report.html NOT found. Files present:"
+            echo "❌ HTML report missing or too small:"
             ls -lh zap-output/
             exit 1
           fi
 
-      - name: Upload ZAP Reports
-        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808
+      - name: Upload ZAP Report
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: zap-dast-report
