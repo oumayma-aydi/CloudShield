@@ -40,7 +40,6 @@ jobs:
             --json \
             --output $GITHUB_WORKSPACE/semgrep-report.json \
             . || true
-          
           echo "Semgrep scan complete — summary:"
           # This Python script only works if the JSON file was created successfully above
           if [ -f "$GITHUB_WORKSPACE/semgrep-report.json" ]; then
@@ -271,47 +270,32 @@ jobs:
     name: Stage 5 · OWASP ZAP DAST
     runs-on: self-hosted
     needs: infrastructure-deploy
-    # SECURITY GATE 4 — only runs after full deployment chain
-    # Scans: live Juice Shop HTTP app on localhost:3000
-    # Detects: OWASP A01 (broken access control), A02 (misconfiguration), A03 (live injection)
-    # Only tool that tests the RUNNING app — all others scanned static files
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-
-      - name: Kill any existing port-forward on port 3000
-        run: pkill -f "port-forward.*3000" || true
-
       - name: Start port-forward to Juice Shop
-        # Kind NodePort is inside Docker network — not reachable from host directly
-        # Port-forward tunnels the service to localhost:3000 for ZAP
         run: |
-          kubectl port-forward svc/juice-shop-service 3000:3000 &
+          # Kill any existing port-forward
+          pkill -f "port-forward.*3000" || true
+          sleep 2
+          # USE THE NAMESPACE WE FOUND
+          kubectl port-forward svc/juice-shop-service 3000:3000 -n juice-shop &
           sleep 15
-          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000 || echo "000")
-          echo "Juice Shop HTTP response: $HTTP_CODE"
-
-      - name: Pull ZAP image
-        run: docker pull ghcr.io/zaproxy/zaproxy:stable
 
       - name: Run ZAP baseline scan
         run: |
-          # Create output directory in workspace
-          mkdir -p $GITHUB_WORKSPACE/zap-output
-
+          # Create the folder
+          mkdir -p zap-output
+          chmod 777 zap-output
+          
+          # Run ZAP
           docker run --rm \
             --network host \
-            -v $GITHUB_WORKSPACE/zap-output:/zap/wrk/:rw \
+            -v $(pwd)/zap-output:/zap/wrk/:rw \
             ghcr.io/zaproxy/zaproxy:stable \
             zap-baseline.py \
             -t http://localhost:3000 \
             -r zap-report.html \
             -J zap-report.json \
-            -I \
-            -l WARN || true
-
-          echo "ZAP output directory contents:"
-          ls -la $GITHUB_WORKSPACE/zap-output/
+            -I || true
 
       - name: Stop port-forward
         if: always()
@@ -322,9 +306,8 @@ jobs:
         if: always()
         with:
           name: zap-dast-report
-          path: |
-            zap-output/zap-report.html
-            zap-output/zap-report.json
+          # We just upload the whole folder to be safe
+          path: zap-output/
           retention-days: 30
 
   # ============================================================
