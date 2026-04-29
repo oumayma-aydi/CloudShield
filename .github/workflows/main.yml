@@ -271,43 +271,66 @@ jobs:
     runs-on: self-hosted
     needs: infrastructure-deploy
     steps:
-      - name: Start Port-Forward (Immediate)
+      - name: Wait for Juice Shop Pod to be Ready
         run: |
-          # Clear any old tunnels
+          echo "=== Waiting for Juice Shop pod to be Running... ==="
+          kubectl rollout status deployment/juice-shop -n juice-shop --timeout=120s || true
+          # Extra guard: wait until pod is actually Ready
+          for i in $(seq 1 20); do
+            STATUS=$(kubectl get pods -n juice-shop -l app=juice-shop \
+              -o jsonpath='{.items[0].status.conditions[?(@.type=="Ready")].status}' 2>/dev/null)
+            if [ "$STATUS" = "True" ]; then
+              echo "✅ Pod is Ready."
+              break
+            fi
+            echo "⏳ Attempt $i/20 — pod not ready yet, waiting 10s..."
+            sleep 10
+          done
+          kubectl get pods -n juice-shop
+
+      - name: Start Port-Forward on Host
+        run: |
+          # Kill any stale forwarder
           pkill -f "port-forward.*3000" || true
           sleep 2
-          # Start tunnel without waiting for pod health
-          kubectl port-forward svc/juice-shop-service 3000:3000 -n juice-shop --address 0.0.0.0 &
-          # Give it a small window to initialize
-          sleep 15
+          # Bind on all interfaces so host localhost:3000 is reachable
+          kubectl port-forward svc/juice-shop-service 3000:3000 \
+            -n juice-shop --address 0.0.0.0 &
+          PF_PID=$!
+          echo "Port-forward PID: $PF_PID"
+          # Give it time to establish
+          sleep 20
+          # Verify it's actually listening
+          echo "=== Checking if port 3000 is open on host ==="
+          curl -s --max-time 5 http://localhost:3000 > /dev/null \
+            && echo "✅ Port 3000 is reachable" \
+            || echo "❌ WARNING: Port 3000 not responding — ZAP will likely fail"
 
-      - name: Run ZAP Scan and Generate Report
+      - name: Run ZAP Scan (host network)
         run: |
-          # Prepare the output folder
-          mkdir -p zap-output
-          chmod 777 zap-output
-          
-          # Find the Docker Bridge IP so ZAP can reach the host
-          DOCKER_BRIDGE_IP=$(docker network inspect bridge -f '{{range .IPAM.Config}}{{.Gateway}}{{end}}')
-          echo "Targeting Host IP: $DOCKER_BRIDGE_IP"
-
-          # Run ZAP. '|| true' ensures the job doesn't stop if alerts are found.
-          # '--user root' ensures Docker has permissions to write the HTML file.
+          mkdir -p zap-output && chmod 777 zap-output
+          echo "=== Starting ZAP baseline scan targeting localhost:3000 ==="
           docker run --user root --rm \
+            --network host \
             -v $(pwd)/zap-output:/zap/wrk/:rw \
             ghcr.io/zaproxy/zaproxy:stable \
             zap-baseline.py \
-            -t http://$DOCKER_BRIDGE_IP:3000 \
+            -t http://localhost:3000 \
             -r zap-report.html \
             -J zap-report.json \
             -I || true
-          
-          # Debug: show if the file was created
-          ls -l zap-output/
+          echo "=== Contents of zap-output after scan ==="
+          ls -lh zap-output/
 
-      - name: Stop port-forward
-        if: always()
-        run: pkill -f "port-forward.*3000" || true
+      - name: Verify HTML Report Exists
+        run: |
+          if [ -f "zap-output/zap-report.html" ]; then
+            echo "✅ zap-report.html generated ($(du -h zap-output/zap-report.html | cut -f1))"
+          else
+            echo "❌ zap-report.html NOT found. Files present:"
+            ls -lh zap-output/
+            exit 1
+          fi
 
       - name: Upload ZAP Reports
         uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808
