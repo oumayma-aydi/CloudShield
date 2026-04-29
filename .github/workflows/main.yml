@@ -201,7 +201,9 @@ jobs:
               kind create cluster --name cloudshield-cluster
             )
           fi
-          kubectl get nodes
+          echo "Waiting 30 seconds for API server to stabilize..."
+          sleep 30
+          kubectl get nodes || (sleep 15 && kubectl get nodes)
 
       - name: Deploy Juice Shop to Kind cluster
         # --validate=false: bypasses TLS handshake timeout on Kind API schema endpoint
