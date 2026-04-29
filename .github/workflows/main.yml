@@ -295,15 +295,13 @@ jobs:
         run: docker pull ghcr.io/zaproxy/zaproxy:stable
 
       - name: Run ZAP baseline scan
-        # --network host : ZAP container must reach localhost:3000
-        # -I             : audit mode — findings logged but do NOT block pipeline
-        # -r             : HTML report saved to workspace
-        # -J             : JSON report saved to workspace
-        # -l WARN        : only log WARN and above to reduce noise
         run: |
+          # Create output directory in workspace
+          mkdir -p $GITHUB_WORKSPACE/zap-output
+
           docker run --rm \
             --network host \
-            -v $GITHUB_WORKSPACE:/zap/wrk/:rw \
+            -v $GITHUB_WORKSPACE/zap-output:/zap/wrk/:rw \
             ghcr.io/zaproxy/zaproxy:stable \
             zap-baseline.py \
             -t http://localhost:3000 \
@@ -311,7 +309,9 @@ jobs:
             -J zap-report.json \
             -I \
             -l WARN || true
-          echo "ZAP scan complete"
+
+          echo "ZAP output directory contents:"
+          ls -la $GITHUB_WORKSPACE/zap-output/
 
       - name: Stop port-forward
         if: always()
@@ -323,8 +323,8 @@ jobs:
         with:
           name: zap-dast-report
           path: |
-            zap-report.html
-            zap-report.json
+            zap-output/zap-report.html
+            zap-output/zap-report.json
           retention-days: 30
 
   # ============================================================
