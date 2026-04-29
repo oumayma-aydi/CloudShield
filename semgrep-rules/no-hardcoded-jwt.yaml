@@ -1,0 +1,8 @@
+rules:
+  - id: no-hardcoded-jwt-secret
+    languages: [javascript, typescript]
+    severity: ERROR
+    message: "Possible hardcoded JWT secret — sensitive key in source code (OWASP A04)"
+    patterns:
+      - pattern: jwt.sign($PAYLOAD, "$SECRET", ...)
+      - pattern: jwt.verify($TOKEN, "$SECRET", ...)

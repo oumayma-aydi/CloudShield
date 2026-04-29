@@ -1,0 +1,6 @@
+rules:
+  - id: no-eval
+    languages: [javascript, typescript]
+    severity: ERROR
+    message: "eval() detected — leads to Remote Code Execution (OWASP A03 Injection)"
+    pattern: eval(...)

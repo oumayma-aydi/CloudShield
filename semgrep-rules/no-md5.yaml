@@ -1,0 +1,6 @@
+rules:
+  - id: no-md5
+    languages: [javascript, typescript]
+    severity: ERROR
+    message: "MD5 is cryptographically broken — use SHA-256 or bcrypt instead (OWASP A04)"
+    pattern: crypto.createHash("md5")
