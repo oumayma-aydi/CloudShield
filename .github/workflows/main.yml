@@ -271,35 +271,46 @@ jobs:
     runs-on: self-hosted
     needs: infrastructure-deploy
     steps:
-      - name: Force Restart App (to free memory)
+      - name: Ensure App is Healthy
         run: |
-          kubectl delete pod -l app=juice-shop -n juice-shop || true
-          sleep 10
+          # Make sure the pod is actually running and ready
           kubectl wait --for=condition=ready pod -l app=juice-shop -n juice-shop --timeout=120s
 
-      - name: Start Robust Port-forward
+      - name: Start Port-Forward (Background)
         run: |
           pkill -f "port-forward.*3000" || true
           sleep 2
-          # Use --address 0.0.0.0 to make the tunnel reachable by Docker
+          # Listen on 0.0.0.0 so the Docker container can reach it via the Bridge IP
           kubectl port-forward svc/juice-shop-service 3000:3000 -n juice-shop --address 0.0.0.0 &
-          sleep 30
-          # Verify tunnel with a retry loop
-          for i in {1..5}; do curl -s -I http://localhost:3000 && break || sleep 5; done
+          sleep 20
 
-      - name: Run ZAP baseline scan
+      - name: Run ZAP Scan
         run: |
+          # 1. Prepare workspace with full permissions
           mkdir -p zap-output
           chmod 777 zap-output
+          
+          # 2. Get the VM's Docker Bridge IP (usually 172.17.0.1)
+          DOCKER_BRIDGE_IP=$(docker network inspect bridge -f '{{range .IPAM.Config}}{{.Gateway}}{{end}}')
+          echo "Targeting Docker Bridge IP: $DOCKER_BRIDGE_IP"
+
+          # 3. Run ZAP targeting the Bridge IP instead of localhost
           docker run --rm \
-            --network host \
             -v $(pwd)/zap-output:/zap/wrk/:rw \
             ghcr.io/zaproxy/zaproxy:stable \
             zap-baseline.py \
-            -t http://localhost:3000 \
+            -t http://$DOCKER_BRIDGE_IP:3000 \
             -r zap-report.html \
             -J zap-report.json \
             -I || true
+          
+          # 4. Check if the file was actually created
+          if [ -f "zap-output/zap-report.html" ]; then
+             echo "SUCCESS: Report generated."
+          else
+             echo "FAILURE: Report not found."
+             exit 1
+          fi
 
       - name: Stop port-forward
         if: always()
