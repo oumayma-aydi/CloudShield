@@ -271,22 +271,26 @@ jobs:
     runs-on: self-hosted
     needs: infrastructure-deploy
     steps:
-      - name: Start port-forward to Juice Shop
+      - name: Force Restart App (to free memory)
         run: |
-          # Kill any existing port-forward
+          kubectl delete pod -l app=juice-shop -n juice-shop || true
+          sleep 10
+          kubectl wait --for=condition=ready pod -l app=juice-shop -n juice-shop --timeout=120s
+
+      - name: Start Robust Port-forward
+        run: |
           pkill -f "port-forward.*3000" || true
           sleep 2
-          # USE THE NAMESPACE WE FOUND
-          kubectl port-forward svc/juice-shop-service 3000:3000 -n juice-shop &
-          sleep 15
+          # Use --address 0.0.0.0 to make the tunnel reachable by Docker
+          kubectl port-forward svc/juice-shop-service 3000:3000 -n juice-shop --address 0.0.0.0 &
+          sleep 30
+          # Verify tunnel with a retry loop
+          for i in {1..5}; do curl -s -I http://localhost:3000 && break || sleep 5; done
 
       - name: Run ZAP baseline scan
         run: |
-          # Create the folder
           mkdir -p zap-output
           chmod 777 zap-output
-          
-          # Run ZAP
           docker run --rm \
             --network host \
             -v $(pwd)/zap-output:/zap/wrk/:rw \
@@ -306,7 +310,6 @@ jobs:
         if: always()
         with:
           name: zap-dast-report
-          # We just upload the whole folder to be safe
           path: zap-output/
           retention-days: 30
 
