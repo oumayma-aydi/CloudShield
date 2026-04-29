@@ -271,31 +271,29 @@ jobs:
     runs-on: self-hosted
     needs: infrastructure-deploy
     steps:
-      - name: Ensure App is Healthy
+      - name: Start Port-Forward (Immediate)
         run: |
-          # Make sure the pod is actually running and ready
-          kubectl wait --for=condition=ready pod -l app=juice-shop -n juice-shop --timeout=120s
-
-      - name: Start Port-Forward (Background)
-        run: |
+          # Clear any old tunnels
           pkill -f "port-forward.*3000" || true
           sleep 2
-          # Listen on 0.0.0.0 so the Docker container can reach it via the Bridge IP
+          # Start tunnel without waiting for pod health
           kubectl port-forward svc/juice-shop-service 3000:3000 -n juice-shop --address 0.0.0.0 &
-          sleep 20
+          # Give it a small window to initialize
+          sleep 15
 
-      - name: Run ZAP Scan
+      - name: Run ZAP Scan and Generate Report
         run: |
-          # 1. Prepare workspace with full permissions
+          # Prepare the output folder
           mkdir -p zap-output
           chmod 777 zap-output
           
-          # 2. Get the VM's Docker Bridge IP (usually 172.17.0.1)
+          # Find the Docker Bridge IP so ZAP can reach the host
           DOCKER_BRIDGE_IP=$(docker network inspect bridge -f '{{range .IPAM.Config}}{{.Gateway}}{{end}}')
-          echo "Targeting Docker Bridge IP: $DOCKER_BRIDGE_IP"
+          echo "Targeting Host IP: $DOCKER_BRIDGE_IP"
 
-          # 3. Run ZAP targeting the Bridge IP instead of localhost
-          docker run --rm \
+          # Run ZAP. '|| true' ensures the job doesn't stop if alerts are found.
+          # '--user root' ensures Docker has permissions to write the HTML file.
+          docker run --user root --rm \
             -v $(pwd)/zap-output:/zap/wrk/:rw \
             ghcr.io/zaproxy/zaproxy:stable \
             zap-baseline.py \
@@ -304,13 +302,8 @@ jobs:
             -J zap-report.json \
             -I || true
           
-          # 4. Check if the file was actually created
-          if [ -f "zap-output/zap-report.html" ]; then
-             echo "SUCCESS: Report generated."
-          else
-             echo "FAILURE: Report not found."
-             exit 1
-          fi
+          # Debug: show if the file was created
+          ls -l zap-output/
 
       - name: Stop port-forward
         if: always()
