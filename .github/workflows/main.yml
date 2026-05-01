@@ -274,9 +274,7 @@ jobs:
       - name: Force Fresh Pod (Memory Mitigation)
         run: |
           echo "=== Killing stale/crashed Juice Shop pod ==="
-          # Delete the crashed pod — the deployment will immediately create a fresh one
           kubectl delete pod -n juice-shop -l app=juice-shop --force --grace-period=0 || true
-          # Also kill any stale port-forward from a previous run
           pkill -f "port-forward.*3000" || true
           echo "Waiting 15s for new pod to be scheduled..."
           sleep 15
@@ -285,21 +283,16 @@ jobs:
       - name: Wait for Juice Shop to be Truly Ready
         run: |
           echo "=== Waiting for pod to reach Running + Ready ==="
-          # Wait up to 3 minutes for the deployment rollout
           kubectl rollout status deployment/juice-shop-deployment \
             -n juice-shop --timeout=180s || true
-
-          # Then poll until the app itself is responding (not just "Running")
           echo "=== Polling HTTP health until app responds ==="
-          HOST_PORT=3001  # use a temp port for health check to avoid conflicts
-          kubectl port-forward svc/juice-shop-service ${HOST_PORT}:3000 \
+          kubectl port-forward svc/juice-shop-service 3001:3000 \
             -n juice-shop --address 127.0.0.1 &
           PF_HEALTH_PID=$!
           sleep 8
-
           for i in $(seq 1 24); do
             HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
-              --max-time 4 http://127.0.0.1:${HOST_PORT} 2>/dev/null || echo "000")
+              --max-time 4 http://127.0.0.1:3001 2>/dev/null || echo "000")
             if [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "302" ]; then
               echo "✅ Juice Shop is responding (HTTP $HTTP_CODE) after attempt $i"
               kill $PF_HEALTH_PID 2>/dev/null || true
@@ -308,7 +301,6 @@ jobs:
             echo "⏳ Attempt $i/24 — HTTP $HTTP_CODE — waiting 10s..."
             sleep 10
           done
-
           kill $PF_HEALTH_PID 2>/dev/null || true
           sleep 3
           kubectl get pods -n juice-shop
@@ -321,7 +313,6 @@ jobs:
             -n juice-shop --address 0.0.0.0 &
           echo "Port-forward PID: $!"
           sleep 15
-          # Final sanity check
           curl -s --max-time 5 -o /dev/null -w "Port-forward health: HTTP %{http_code}\n" \
             http://localhost:3000 || echo "❌ Still not responding — check pod status"
           kubectl get pods -n juice-shop
@@ -359,7 +350,7 @@ jobs:
         with:
           name: zap-dast-report
           path: zap-output/
-          retention-days: 30
+          retention-days: 30 
 
   # ============================================================
   # FINAL JOB — consolidate every report into one bundle
