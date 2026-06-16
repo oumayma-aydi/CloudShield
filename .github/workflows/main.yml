@@ -57,7 +57,7 @@ jobs:
           fi
 
       - name: Upload Semgrep Report
-        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         if: always()
         with:
           name: semgrep-sast-report
@@ -93,7 +93,7 @@ jobs:
           " || true
 
       - name: Upload SBOM Artifact
-        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         if: always()
         with:
           name: syft-sbom-cyclonedx
@@ -127,7 +127,7 @@ jobs:
           echo "Checkov scan complete"
 
       - name: Upload Checkov Report
-        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         if: always()
         with:
           name: checkov-scan-report
@@ -167,7 +167,7 @@ jobs:
           " || true
 
       - name: Upload Trivy Report
-        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         if: always()
         with:
           name: trivy-container-report
@@ -345,7 +345,7 @@ jobs:
           fi
 
       - name: Upload ZAP Report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: zap-dast-report
@@ -385,7 +385,7 @@ jobs:
           echo "Total files: $(find all-reports/ -type f | wc -l)"
 
       - name: Upload consolidated compliance bundle
-        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: cloudshield-full-compliance-bundle
           path: all-reports/
